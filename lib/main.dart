@@ -109,6 +109,11 @@ class _MyHomePageState extends State<MyHomePage>
   Offset bottomLeftDragOffset = Offset.zero;
   Offset bottomRightDragOffset = Offset.zero;
 
+  Offset topDragOffset = Offset.zero;
+  Offset bottomDragOffset = Offset.zero;
+  Offset leftDragOffset = Offset.zero;
+  Offset rightDragOffset = Offset.zero;
+
   Offset dragSpaceOffset = const Offset(100, 100);
 
   double dragAngleRadius = 30;
@@ -190,6 +195,10 @@ class _MyHomePageState extends State<MyHomePage>
     topLeftDragOffset = Offset.zero;
     bottomLeftDragOffset = Offset.zero;
     bottomRightDragOffset = Offset.zero;
+    rightDragOffset = Offset.zero;
+    topDragOffset = Offset.zero;
+    bottomDragOffset = Offset.zero;
+    leftDragOffset = Offset.zero;
     imageRect = Rect.zero;
     hideCropper = true;
   }
@@ -242,6 +251,18 @@ class _MyHomePageState extends State<MyHomePage>
       case 'bottomRight':
         bottomRightDragOffset = details.globalPosition;
         break;
+      case 'top':
+        topDragOffset = details.globalPosition;
+        break;
+      case 'bottom':
+        bottomDragOffset = details.globalPosition;
+        break;
+      case 'left':
+        leftDragOffset = details.globalPosition;
+        break;
+      case 'right':
+        rightDragOffset = details.globalPosition;
+        break;
       default:
         break;
     }
@@ -249,6 +270,87 @@ class _MyHomePageState extends State<MyHomePage>
 
   void _onPanUpdate(DragUpdateDetails details, String position) {
     switch (position) {
+      case 'top':
+        Offset containerBalancingOffset = Offset(0, imageContainerRect.top);
+        Offset imageBalancingOffset = Offset(0, imageRect.top);
+
+        topDragOffset = (Offset(0, details.globalPosition.dy) -
+                containerBalancingOffset -
+                imageBalancingOffset)
+            .clampDY(
+                0,
+                (imageRect.height - dragAngleRadius) +
+                    bottomLeftDragOffset.dy -
+                    dragSpaceOffset.dy);
+
+        topLeftDragOffset = Offset(topLeftDragOffset.dx, topDragOffset.dy);
+        topRightDragOffset = Offset(topRightDragOffset.dx, topDragOffset.dy);
+
+        break;
+
+      case 'bottom':
+        Offset containerBalancingOffset = Offset(0, imageContainerRect.top);
+        Offset imageBalancingOffset = Offset(0, imageRect.bottom);
+
+        bottomDragOffset = (Offset(0, details.globalPosition.dy) -
+                containerBalancingOffset -
+                imageBalancingOffset)
+            // .clamp(clampOffset1, clampOffset2)
+            .clampDY(
+                topLeftDragOffset.dy -
+                    imageRect.height +
+                    dragAngleRadius +
+                    dragSpaceOffset.dy,
+                0);
+
+        bottomLeftDragOffset =
+            Offset(bottomLeftDragOffset.dx, bottomDragOffset.dy);
+        bottomRightDragOffset =
+            Offset(bottomRightDragOffset.dx, bottomDragOffset.dy);
+        break;
+
+      case 'left':
+        Offset containerBalancingOffset =
+        Offset(imageContainerRect.left, 0);
+        Offset imageBalancingOffset = Offset(imageRect.left, 0);
+
+        leftDragOffset = (Offset(details.globalPosition.dx, 0) -
+            containerBalancingOffset -
+            imageBalancingOffset)
+            .clampDX(
+            0,
+            imageRect.width -
+                dragAngleRadius +
+                topRightDragOffset.dx -
+                dragSpaceOffset.dx);
+
+        topLeftDragOffset =
+            Offset(leftDragOffset.dx, topLeftDragOffset.dy);
+
+        bottomLeftDragOffset =
+            Offset(leftDragOffset.dx, bottomLeftDragOffset.dy);
+        break;
+
+        case 'right':
+          Offset containerBalancingOffset =
+          Offset(imageContainerRect.left, 0);
+          Offset imageBalancingOffset = Offset(imageRect.right,0);
+
+          rightDragOffset = ((Offset(details.globalPosition.dx, 0) -
+              imageBalancingOffset -
+              containerBalancingOffset))
+              .clampDX(
+              -(imageRect.right - dragAngleRadius - imageRect.left) +
+                  topLeftDragOffset.dx +
+                  dragSpaceOffset.dx,
+              0);
+
+          topRightDragOffset = Offset(rightDragOffset.dx, topRightDragOffset.dy);
+
+          bottomRightDragOffset =
+              Offset(rightDragOffset.dx, bottomRightDragOffset.dy);
+          break;
+
       case 'topLeft':
         // Offset clampOffset1 = Offset.zero;
         // Offset clampOffset2 = Offset(imageRect.width - dragAngleRadius,
@@ -278,6 +380,9 @@ class _MyHomePageState extends State<MyHomePage>
 
         bottomLeftDragOffset =
             Offset(topLeftDragOffset.dx, bottomLeftDragOffset.dy);
+
+        topDragOffset = Offset(topDragOffset.dx, topLeftDragOffset.dy);
+        leftDragOffset = Offset(topLeftDragOffset.dx, leftDragOffset.dy);
 
         break;
 
@@ -310,6 +415,9 @@ class _MyHomePageState extends State<MyHomePage>
 
         bottomRightDragOffset =
             Offset(topRightDragOffset.dx, bottomRightDragOffset.dy);
+
+        topDragOffset = Offset(topDragOffset.dx, topRightDragOffset.dy);
+        rightDragOffset = Offset(topRightDragOffset.dx, rightDragOffset.dy);
 
         break;
 
@@ -344,6 +452,9 @@ class _MyHomePageState extends State<MyHomePage>
         topLeftDragOffset =
             Offset(bottomLeftDragOffset.dx, topLeftDragOffset.dy);
 
+        leftDragOffset = Offset(bottomLeftDragOffset.dx, leftDragOffset.dy);
+        bottomDragOffset = Offset(bottomDragOffset.dx, bottomLeftDragOffset.dy);
+
         break;
 
       case 'bottomRight':
@@ -376,6 +487,9 @@ class _MyHomePageState extends State<MyHomePage>
 
         topRightDragOffset =
             Offset(bottomRightDragOffset.dx, topRightDragOffset.dy);
+
+        bottomDragOffset = Offset(bottomDragOffset.dx, bottomRightDragOffset.dy);
+        rightDragOffset = Offset(bottomRightDragOffset.dx, rightDragOffset.dy);
 
         break;
       default:
@@ -515,31 +629,40 @@ class _MyHomePageState extends State<MyHomePage>
                 child: Stack(
                   children: [
                     Positioned.fill(
-                      child: AnimatedRotation(
-                        curve: Curves.decelerate,
-                        duration: const Duration(milliseconds: 350),
-                        turns: angleIndex,
+                      child: AnimatedBuilder(
+                        animation: _controller,
                         key: imageContainerKey,
-                        child: AnimatedScale(
-                          scale: _computeRotationScale(),
-                          duration: const Duration(milliseconds: 350),
+                        builder: (context, child) {
+                          return Transform.scale(
+                            scaleX: _controller.value,
+                            child: child,
+                          );
+                        },
+                        child: AnimatedRotation(
                           curve: Curves.decelerate,
-                          child: Container(
-                            color: Colors.transparent,
-                            key: imageKey,
-                            child: Image.memory(
-                              image!,
-                              fit: BoxFit.scaleDown,
+                          duration: const Duration(milliseconds: 350),
+                          turns: angleIndex,
+                          child: AnimatedScale(
+                            scale: _computeRotationScale(),
+                            duration: const Duration(milliseconds: 350),
+                            curve: Curves.decelerate,
+                            child: Container(
+                              color: Colors.transparent,
+                              key: imageKey,
+                              child: Image.memory(
+                                image!,
+                                fit: BoxFit.scaleDown,
+                              ),
                             ),
                           ),
+                          onEnd: () {
+                            if (mounted) {
+                              setState(() {
+                                hideCropper = false;
+                              });
+                            }
+                          },
                         ),
-                        onEnd: () {
-                          if (mounted) {
-                            setState(() {
-                              hideCropper = false;
-                            });
-                          }
-                        },
                       ),
                     ),
                     if (!hideCropper)
@@ -659,6 +782,156 @@ class _MyHomePageState extends State<MyHomePage>
                           ),
                         ),
                       ),
+                    if (!hideCropper)
+                      Positioned(
+                        left: (topLeftDragOffset.dx + imageRect.left) + 30,
+                        top: imageRect.top,
+                        child: Transform.translate(
+                          offset: topDragOffset,
+                          child: GestureDetector(
+                            // onTap: () => print('tap on'),
+                            onPanStart: (details) =>
+                                _onPanStart(details, 'top'),
+                            onPanUpdate: (details) =>
+                                _onPanUpdate(details, 'top'),
+                            child:
+                                LayoutBuilder(builder: (context, constraint) {
+                              Size size = Size(
+                                  (imageRect.width - (dragAngleRadius * 2)),
+                                  dragAngleRadius);
+
+                              size = Rect.fromLTRB(
+                                      topLeftDragOffset.dx,
+                                      topLeftDragOffset.dy,
+                                      imageRect.width + topRightDragOffset.dx,
+                                      imageRect.height +
+                                          bottomRightDragOffset.dy)
+                                  .size;
+                              size = Size(size.width - (dragAngleRadius * 2),
+                                  dragAngleRadius);
+                              return CustomPaint(
+                                willChange: true,
+                                size: size,
+                                painter: VerticalHandlePainter(
+                                  offset: Offset.zero,
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    if (!hideCropper)
+                      Positioned(
+                        left: (topLeftDragOffset.dx + imageRect.left) + 30,
+                        bottom: 0,
+                        child: Transform.translate(
+                          offset: bottomDragOffset,
+                          child: GestureDetector(
+                            // onTap: () => print('tap on'),
+                            onPanStart: (details) =>
+                                _onPanStart(details, 'bottom'),
+                            onPanUpdate: (details) =>
+                                _onPanUpdate(details, 'bottom'),
+                            child:
+                                LayoutBuilder(builder: (context, constraint) {
+                              Size size = Size(
+                                  (imageRect.width - (dragAngleRadius * 2)),
+                                  dragAngleRadius);
+
+                              size = Rect.fromLTRB(
+                                      topLeftDragOffset.dx,
+                                      topLeftDragOffset.dy,
+                                      imageRect.width + topRightDragOffset.dx,
+                                      imageRect.height +
+                                          bottomRightDragOffset.dy)
+                                  .size;
+                              size = Size(size.width - (dragAngleRadius * 2),
+                                  dragAngleRadius);
+                              return CustomPaint(
+                                willChange: true,
+                                size: size,
+                                painter: VerticalHandlePainter(
+                                  offset: Offset(0, dragAngleRadius),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    if (!hideCropper)
+                      Positioned(
+                        left: imageRect.left,
+                        top: topLeftDragOffset.dy + imageRect.top + 30,
+                        child: Transform.translate(
+                          offset: leftDragOffset,
+                          child: GestureDetector(
+                            // onTap: () => print('tap on'),
+                            onPanStart: (details) =>
+                                _onPanStart(details, 'left'),
+                            onPanUpdate: (details) =>
+                                _onPanUpdate(details, 'left'),
+                            child:
+                                LayoutBuilder(builder: (context, constraint) {
+                              Size size = Size(dragAngleRadius,
+                                  (imageRect.height - (dragAngleRadius * 2)));
+
+                              size = Rect.fromLTRB(
+                                      topLeftDragOffset.dx,
+                                      topLeftDragOffset.dy,
+                                      imageRect.width + topRightDragOffset.dx,
+                                      imageRect.height +
+                                          bottomRightDragOffset.dy)
+                                  .size;
+                              size = Size(dragAngleRadius,
+                                  size.height - (dragAngleRadius * 2));
+                              return CustomPaint(
+                                willChange: true,
+                                size: size,
+                                painter: HorizontalHandlePainter(
+                                  offset: Offset.zero,
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    if (!hideCropper)
+                      Positioned(
+                        right: imageRect.left,
+                        top: topLeftDragOffset.dy + imageRect.top + 30,
+                        child: Transform.translate(
+                          offset: rightDragOffset,
+                          child: GestureDetector(
+                            // onTap: () => print('tap on'),
+                            onPanStart: (details) =>
+                                _onPanStart(details, 'right'),
+                            onPanUpdate: (details) =>
+                                _onPanUpdate(details, 'right'),
+                            child:
+                            LayoutBuilder(builder: (context, constraint) {
+                              Size size = Size(dragAngleRadius,
+                                  (imageRect.height - (dragAngleRadius * 2)));
+
+                              size = Rect.fromLTRB(
+                                  topLeftDragOffset.dx,
+                                  topLeftDragOffset.dy,
+                                  imageRect.width + topRightDragOffset.dx,
+                                  imageRect.height +
+                                      bottomRightDragOffset.dy)
+                                  .size;
+                              size = Size(dragAngleRadius,
+                                  size.height - (dragAngleRadius * 2));
+                              return CustomPaint(
+                                willChange: true,
+                                size: size,
+                                painter: HorizontalHandlePainter(
+                                  offset: Offset(dragAngleRadius, 0),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -757,6 +1030,56 @@ class OverlayGrid extends CustomPainter {
   bool shouldRepaint(CustomPainter old) {
     return true;
   }
+}
+
+class VerticalHandlePainter extends CustomPainter {
+  VerticalHandlePainter({this.handleSize = 15, required this.offset});
+  final double handleSize;
+  final Offset offset;
+
+  @override
+  void paint(Canvas canvas, Size paintSize) {
+    Paint paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.square;
+
+    Offset p1 = Offset(paintSize.width / 2 - (handleSize), offset.dy);
+    Offset p2 = Offset(paintSize.width / 2 + (handleSize), offset.dy);
+
+    canvas.drawLine(p1, p2, paint);
+    paint.color = Colors.transparent;
+    canvas.drawRect(
+        Rect.fromLTRB(0, 0, paintSize.width, handleSize * 2), paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
+}
+
+class HorizontalHandlePainter extends CustomPainter {
+  HorizontalHandlePainter({this.handleSize = 15, required this.offset});
+  final double handleSize;
+  final Offset offset;
+
+  @override
+  void paint(Canvas canvas, Size paintSize) {
+    Paint paint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.square;
+
+    Offset p1 = Offset( offset.dx, paintSize.height / 2 - (handleSize));
+    Offset p2 = Offset( offset.dx, paintSize.height / 2 + (handleSize));
+
+    canvas.drawLine(p1, p2, paint);
+    paint.color = Colors.transparent;
+    canvas.drawRect(
+        Rect.fromLTRB(0, 0, paintSize.width, paintSize.height), paint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
 
 class TopLeftHandlePainter extends CustomPainter {
@@ -897,6 +1220,7 @@ class BottomRightHandlePainter extends CustomPainter {
 }
 
 extension OffsetExtension on Offset {
+  Offset get flipped => Offset(dy, dx);
   Offset clampToRect(Rect rect) {
     return Offset(
       dx.clamp(rect.left, rect.right),
