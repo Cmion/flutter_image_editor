@@ -18,6 +18,10 @@ double toRad(num degree) {
   return (degree * math.pi) / 180;
 }
 
+double toDeg(num rad) {
+  return rad * (180 / math.pi);
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -75,7 +79,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _flipAnimationController;
 
   Uint8List? image;
 
@@ -121,7 +125,7 @@ class _MyHomePageState extends State<MyHomePage>
   @override
   void initState() {
     _onSetImage();
-    _controller = AnimationController(
+    _flipAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
       lowerBound: -1,
@@ -133,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _flipAnimationController.dispose();
     super.dispose();
   }
 
@@ -201,6 +205,8 @@ class _MyHomePageState extends State<MyHomePage>
     leftDragOffset = Offset.zero;
     imageRect = Rect.zero;
     hideCropper = true;
+    angleIndex = 0;
+    _flipAnimationController.value = 1;
   }
 
   void _onFlipImage({bool horizontal = false, bool vertical = false}) async {
@@ -215,10 +221,11 @@ class _MyHomePageState extends State<MyHomePage>
     //   });
     // }
 
-    if (_controller.isCompleted && _controller.value == 1) {
-      _controller.animateTo(-1, curve: Curves.easeInOut);
+    if (_flipAnimationController.isCompleted &&
+        _flipAnimationController.value == 1) {
+      _flipAnimationController.animateTo(-1, curve: Curves.easeInOut);
     } else {
-      _controller.animateTo(1, curve: Curves.easeInOut);
+      _flipAnimationController.animateTo(1, curve: Curves.easeInOut);
     }
   }
 
@@ -310,46 +317,43 @@ class _MyHomePageState extends State<MyHomePage>
         break;
 
       case 'left':
-        Offset containerBalancingOffset =
-        Offset(imageContainerRect.left, 0);
+        Offset containerBalancingOffset = Offset(imageContainerRect.left, 0);
         Offset imageBalancingOffset = Offset(imageRect.left, 0);
 
         leftDragOffset = (Offset(details.globalPosition.dx, 0) -
-            containerBalancingOffset -
-            imageBalancingOffset)
+                containerBalancingOffset -
+                imageBalancingOffset)
             .clampDX(
-            0,
-            imageRect.width -
-                dragAngleRadius +
-                topRightDragOffset.dx -
-                dragSpaceOffset.dx);
+                0,
+                imageRect.width -
+                    dragAngleRadius +
+                    topRightDragOffset.dx -
+                    dragSpaceOffset.dx);
 
-        topLeftDragOffset =
-            Offset(leftDragOffset.dx, topLeftDragOffset.dy);
+        topLeftDragOffset = Offset(leftDragOffset.dx, topLeftDragOffset.dy);
 
         bottomLeftDragOffset =
             Offset(leftDragOffset.dx, bottomLeftDragOffset.dy);
         break;
 
-        case 'right':
-          Offset containerBalancingOffset =
-          Offset(imageContainerRect.left, 0);
-          Offset imageBalancingOffset = Offset(imageRect.right,0);
+      case 'right':
+        Offset containerBalancingOffset = Offset(imageContainerRect.left, 0);
+        Offset imageBalancingOffset = Offset(imageRect.right, 0);
 
-          rightDragOffset = ((Offset(details.globalPosition.dx, 0) -
-              imageBalancingOffset -
-              containerBalancingOffset))
-              .clampDX(
-              -(imageRect.right - dragAngleRadius - imageRect.left) +
-                  topLeftDragOffset.dx +
-                  dragSpaceOffset.dx,
-              0);
+        rightDragOffset = ((Offset(details.globalPosition.dx, 0) -
+                imageBalancingOffset -
+                containerBalancingOffset))
+            .clampDX(
+                -(imageRect.right - dragAngleRadius - imageRect.left) +
+                    topLeftDragOffset.dx +
+                    dragSpaceOffset.dx,
+                0);
 
-          topRightDragOffset = Offset(rightDragOffset.dx, topRightDragOffset.dy);
+        topRightDragOffset = Offset(rightDragOffset.dx, topRightDragOffset.dy);
 
-          bottomRightDragOffset =
-              Offset(rightDragOffset.dx, bottomRightDragOffset.dy);
-          break;
+        bottomRightDragOffset =
+            Offset(rightDragOffset.dx, bottomRightDragOffset.dy);
+        break;
 
       case 'topLeft':
         // Offset clampOffset1 = Offset.zero;
@@ -488,7 +492,8 @@ class _MyHomePageState extends State<MyHomePage>
         topRightDragOffset =
             Offset(bottomRightDragOffset.dx, topRightDragOffset.dy);
 
-        bottomDragOffset = Offset(bottomDragOffset.dx, bottomRightDragOffset.dy);
+        bottomDragOffset =
+            Offset(bottomDragOffset.dx, bottomRightDragOffset.dy);
         rightDragOffset = Offset(bottomRightDragOffset.dx, rightDragOffset.dy);
 
         break;
@@ -497,6 +502,54 @@ class _MyHomePageState extends State<MyHomePage>
     }
 
     setState(() {});
+  }
+
+  Future<void> _onCreateNewImage() async {
+    final editorOption = ImageEditorOption();
+    if (_flipAnimationController.value < 1) {
+      editorOption.addOption(const FlipOption());
+    }
+
+    if (angleIndex != 0) {
+      double angle = math.pi * 2.0 * angleIndex;
+      editorOption.addOption(RotateOption(toDeg(angle).toInt()));
+    }
+
+    if (topDragOffset != Offset.zero ||
+        rightDragOffset != Offset.zero ||
+        leftDragOffset != Offset.zero ||
+        bottomDragOffset != Offset.zero) {
+      Rect rect = Rect.fromLTRB(
+              topLeftDragOffset.dx,
+              topLeftDragOffset.dy,
+              imageRect.width + topRightDragOffset.dx,
+              imageRect.height + bottomRightDragOffset.dy)
+          ;
+
+      print(rect);
+
+      editorOption.addOption(ClipOption(
+          x: rect.left,
+          y: rect.top,
+          width: rect.size.width,
+          height: rect.size.height));
+    }
+
+    editorOption.outputFormat = const OutputFormat.png(100);
+
+    Uint8List? data = await ImageEditor.editImage(
+        image: image!, imageEditorOption: editorOption);
+
+    // if (data != null) {
+    //   setState(() {
+    //     image = data;
+    //   });
+    // }
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    print(details);
+    _onCreateNewImage();
   }
 
   Future<void> _executeAfterLayoutBuild(
@@ -630,11 +683,11 @@ class _MyHomePageState extends State<MyHomePage>
                   children: [
                     Positioned.fill(
                       child: AnimatedBuilder(
-                        animation: _controller,
+                        animation: _flipAnimationController,
                         key: imageContainerKey,
                         builder: (context, child) {
                           return Transform.scale(
-                            scaleX: _controller.value,
+                            scaleX: _flipAnimationController.value,
                             child: child,
                           );
                         },
@@ -693,6 +746,29 @@ class _MyHomePageState extends State<MyHomePage>
                       ),
                     if (!hideCropper)
                       Positioned(
+                        top: 0,
+                        left: 0,
+                        child: LayoutBuilder(builder: (context, constraints) {
+                          _executeAfterLayoutBuild(context, constraints);
+
+                          return CustomPaint(
+                            willChange: true,
+                            size: imageRect.size,
+                            painter: OverlayFade(offsets: [
+                              Offset(topLeftDragOffset.dx + imageRect.left,
+                                  topLeftDragOffset.dy + imageRect.top),
+                              Offset(topRightDragOffset.dx + imageRect.right,
+                                  topRightDragOffset.dy + imageRect.top),
+                              Offset(bottomLeftDragOffset.dx + imageRect.left,
+                                  bottomLeftDragOffset.dy + imageRect.height),
+                              Offset(bottomRightDragOffset.dx + imageRect.right,
+                                  bottomRightDragOffset.dy + imageRect.height),
+                            ], fadeRect: imageRect),
+                          );
+                        }),
+                      ),
+                    if (!hideCropper)
+                      Positioned(
                         left: imageRect.left,
                         top: imageRect.top,
                         child: Transform.translate(
@@ -701,6 +777,7 @@ class _MyHomePageState extends State<MyHomePage>
                             // behavior: HitTestBehavior.translucent,
                             onPanStart: (details) =>
                                 _onPanStart(details, 'topLeft'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'topLeft'),
 
@@ -725,6 +802,7 @@ class _MyHomePageState extends State<MyHomePage>
                           child: GestureDetector(
                             onPanStart: (details) =>
                                 _onPanStart(details, 'topRight'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'topRight'),
                             child:
@@ -749,6 +827,7 @@ class _MyHomePageState extends State<MyHomePage>
                           child: GestureDetector(
                             onPanStart: (details) =>
                                 _onPanStart(details, 'bottomLeft'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'bottomLeft'),
                             child: CustomPaint(
@@ -770,6 +849,7 @@ class _MyHomePageState extends State<MyHomePage>
                           child: GestureDetector(
                             onPanStart: (details) =>
                                 _onPanStart(details, 'bottomRight'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'bottomRight'),
                             child: CustomPaint(
@@ -792,6 +872,7 @@ class _MyHomePageState extends State<MyHomePage>
                             // onTap: () => print('tap on'),
                             onPanStart: (details) =>
                                 _onPanStart(details, 'top'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'top'),
                             child:
@@ -830,6 +911,7 @@ class _MyHomePageState extends State<MyHomePage>
                             // onTap: () => print('tap on'),
                             onPanStart: (details) =>
                                 _onPanStart(details, 'bottom'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'bottom'),
                             child:
@@ -868,6 +950,7 @@ class _MyHomePageState extends State<MyHomePage>
                             // onTap: () => print('tap on'),
                             onPanStart: (details) =>
                                 _onPanStart(details, 'left'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'left'),
                             child:
@@ -905,19 +988,20 @@ class _MyHomePageState extends State<MyHomePage>
                             // onTap: () => print('tap on'),
                             onPanStart: (details) =>
                                 _onPanStart(details, 'right'),
+                            onPanEnd: _onPanEnd,
                             onPanUpdate: (details) =>
                                 _onPanUpdate(details, 'right'),
                             child:
-                            LayoutBuilder(builder: (context, constraint) {
+                                LayoutBuilder(builder: (context, constraint) {
                               Size size = Size(dragAngleRadius,
                                   (imageRect.height - (dragAngleRadius * 2)));
 
                               size = Rect.fromLTRB(
-                                  topLeftDragOffset.dx,
-                                  topLeftDragOffset.dy,
-                                  imageRect.width + topRightDragOffset.dx,
-                                  imageRect.height +
-                                      bottomRightDragOffset.dy)
+                                      topLeftDragOffset.dx,
+                                      topLeftDragOffset.dy,
+                                      imageRect.width + topRightDragOffset.dx,
+                                      imageRect.height +
+                                          bottomRightDragOffset.dy)
                                   .size;
                               size = Size(dragAngleRadius,
                                   size.height - (dragAngleRadius * 2));
@@ -961,6 +1045,49 @@ class _MyHomePageState extends State<MyHomePage>
   }
 }
 
+/// [OverlayFade] Handles the fading of un-cropped part of the image
+class OverlayFade extends CustomPainter {
+  OverlayFade({required this.offsets, required this.fadeRect});
+  List<Offset> offsets;
+  Rect fadeRect;
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Paint paint = Paint()
+    //   ..color = Colors.redAccent
+    //   ..style = PaintingStyle.fill;
+    //
+    // Paint fadePaint = Paint()
+    //   ..color = Colors.greenAccent
+    //   ..style = PaintingStyle.fill;
+
+    Path cropPath = Path();
+
+    cropPath.moveTo(offsets[0].dx, offsets[0].dy);
+    cropPath.lineTo(offsets[1].dx, offsets[1].dy);
+    cropPath.lineTo(offsets[3].dx, offsets[3].dy);
+    cropPath.lineTo(offsets[2].dx, offsets[2].dy);
+
+    Path fadePath = Path();
+
+    fadePath.moveTo(fadeRect.left, fadeRect.top);
+    fadePath.lineTo(fadeRect.right, fadeRect.top);
+    fadePath.lineTo(fadeRect.right, fadeRect.bottom);
+    fadePath.lineTo(fadeRect.left, fadeRect.bottom);
+
+    final Path mainPath = Path();
+    mainPath.fillType = PathFillType.evenOdd;
+    mainPath.addPath(fadePath, Offset.zero);
+    mainPath.addPath(cropPath, Offset.zero);
+
+    canvas.drawPath(mainPath, Paint()..color = Colors.black.withOpacity(0.7));
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter old) {
+    return true;
+  }
+}
+
 class OverlayGrid extends CustomPainter {
   OverlayGrid({required this.size, required this.imageOffset});
   final Size size;
@@ -972,7 +1099,7 @@ class OverlayGrid extends CustomPainter {
     // print(size);
     Paint paint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 1;
+      ..strokeWidth = 0.5;
 
     _drawVertical(paint, canvas, size);
     _drawHorizontal(paint, canvas, size);
@@ -1014,7 +1141,7 @@ class OverlayGrid extends CustomPainter {
   void _drawAngles(Canvas canvas, Size paintSize) {
     final Paint gridPaint = Paint()
       ..color = Colors.white
-      ..strokeWidth = 1.0
+      ..strokeWidth = 0.5
       ..style = PaintingStyle.stroke;
 
     final double x = (paintSize.width - size.width) / 2;
@@ -1069,8 +1196,8 @@ class HorizontalHandlePainter extends CustomPainter {
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.square;
 
-    Offset p1 = Offset( offset.dx, paintSize.height / 2 - (handleSize));
-    Offset p2 = Offset( offset.dx, paintSize.height / 2 + (handleSize));
+    Offset p1 = Offset(offset.dx, paintSize.height / 2 - (handleSize));
+    Offset p2 = Offset(offset.dx, paintSize.height / 2 + (handleSize));
 
     canvas.drawLine(p1, p2, paint);
     paint.color = Colors.transparent;
